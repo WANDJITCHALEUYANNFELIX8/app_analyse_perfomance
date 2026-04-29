@@ -2,23 +2,26 @@ from flask import Flask, request, render_template, redirect, url_for, session
 import io, base64, matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import os
-from models import Student
-from sklearn.preprocessing import StandardScaler
 import pandas as pd
+
+from models import Student
 from controller import process_student
-from database   import *
-from analysis   import *
 
-
+from database import init_db, connect
+from analysis import *
 
 app = Flask(__name__)
-app.secret_key = "edustat_secret_2024"   # nécessaire pour session
+app.secret_key = "edustat_secret_2024"
 
+# ─────────────────────────────
+# INIT DB (Render safe)
+# ─────────────────────────────
 with app.app_context():
     init_db()
 
-# ── figure → base64 ───────────────────────────────────────────────
+# ─────────────────────────────
+# UTIL: image matplotlib -> base64
+# ─────────────────────────────
 def fig_b64(fig):
     buf = io.BytesIO()
     fig.savefig(buf, format="png", bbox_inches="tight")
@@ -27,25 +30,27 @@ def fig_b64(fig):
     plt.close(fig)
     return img
 
-# ─────────────────────────────────────────────────────────────────
-# ACCUEIL
-# ─────────────────────────────────────────────────────────────────
+# ─────────────────────────────
+# HOME
+# ─────────────────────────────
 @app.route('/')
 def home():
-    nb    = count_students()
+    nb = count_students()
     stats = {}
+
     if nb > 0:
         data = ajouter_classe(afficher_donnees())
         stats = {
-            "moy_gen":       round(data["moyenne"].mean(), 2),
-            "classe_top":    data["classe"].value_counts().idxmax().title(),
+            "moy_gen": round(data["moyenne"].mean(), 2),
+            "classe_top": data["classe"].value_counts().idxmax().title(),
             "nb_excellents": int((data["classe"] == "excellent").sum())
         }
+
     return render_template("index.html", nb=nb, stats=stats)
 
-# ─────────────────────────────────────────────────────────────────
+# ─────────────────────────────
 # FORMULAIRE
-# ─────────────────────────────────────────────────────────────────
+# ─────────────────────────────
 @app.route('/formulaire')
 def formulaire():
     return render_template("formulaire.html")
@@ -53,73 +58,68 @@ def formulaire():
 @app.route('/submit', methods=['POST'])
 def submit():
     form_data = {
-        "age":         request.form["age"],
-        "sexe":        request.form["sexe"],
-        "etude":       request.form["etude"],
-        "sommeil":     request.form["sommeil"],
+        "age": request.form["age"],
+        "sexe": request.form["sexe"],
+        "etude": request.form["etude"],
+        "sommeil": request.form["sommeil"],
         "distraction": request.form["distraction"],
-        "env":         request.form["env"],
-        "assiduite":   request.form["assiduite"],
+        "env": request.form["env"],
+        "assiduite": request.form["assiduite"],
         "ponctualite": request.form["ponctualite"],
-        "discipline":  request.form["discipline"],
-        "tache":       request.form["tache"],
-        "niveau":      request.form["niveau"],
-        "moyenne":     request.form["moyenne"]
+        "discipline": request.form["discipline"],
+        "tache": request.form["tache"],
+        "niveau": request.form["niveau"],
+        "moyenne": request.form["moyenne"]
     }
+
     student = process_student(form_data)
-    
     session["last_student"] = vars(student)
-    
-    return redirect(url_for("resultat"))   
 
+    return redirect(url_for("resultat"))
 
-
-# ─────────────────────────────────────────────────────────────────
-# RÉSULTAT INDIVIDUEL  (GET uniquement)
-# ─────────────────────────────────────────────────────────────────
+# ─────────────────────────────
+# RESULTAT INDIVIDUEL
+# ─────────────────────────────
 @app.route('/resultat')
 def resultat():
-    
-      # 🔥 récupérer depuis session
+
     student_dict = session.get("last_student")
-    
     if not student_dict:
         return redirect(url_for("formulaire"))
-    
-    student = Student(**student_dict)#reconstruction de l'objet
-           
-    # prédiction ML pour cet étudiant
-    
+
+    student = Student(**student_dict)
+
     data = afficher_donnees()
+
     if "classe" not in data.columns:
-        data = ajouter_classe(data) 
-    
-    classe_predite = "indisponible"
+        data = ajouter_classe(data)
+
+    classe_finale = "indisponible"
+    explication = []
 
     if len(data) >= 10 and data["classe"].nunique() >= 2:
         try:
-          
             model_clf, scaler, acc = classification_modele(data)
-                 
-            features = ["etude","sommeil","distraction","assiduite","ponctualite","discipline","tache"]
-                
-            
+
+            features = ["etude","sommeil","distraction",
+                        "assiduite","ponctualite","discipline","tache"]
+
             X_new = pd.DataFrame([[float(student_dict[f]) for f in features]], columns=features)
-            
-            X_scaled = scaler.transform(X_new)            
+
+            X_scaled = scaler.transform(X_new)
             classe_ml = model_clf.predict(X_scaled)[0]
+
             moyenne = float(student.moyenne)
+
             classe_finale = fusion_classe(moyenne, classe_ml)
+
             explication = expliquer_classe(moyenne, classe_ml, classe_finale)
-            
+
         except Exception as e:
             print("Erreur classification :", e)
-    
-    
-    # générer les conseils
+
     moy_gen = round(data["moyenne"].mean(), 2) if len(data) > 0 else "N/A"
-    conseils=generer_conseils(student, classe_finale, moy_gen)     
-    
+    conseils = generer_conseils(student, classe_finale, moy_gen)
 
     return render_template(
         "individuelle.html",
@@ -130,39 +130,37 @@ def resultat():
         explication=explication
     )
 
-# ─────────────────────────────────────────────────────────────────
-# ANALYSE GÉNÉRALE
-# ─────────────────────────────────────────────────────────────────
+# ─────────────────────────────
+# ANALYSE GENERALE
+# ─────────────────────────────
 @app.route('/generale')
 def generale():
     data = afficher_donnees()
+
     if len(data) == 0:
         return render_template("generale.html", vide=True)
 
-    data  = ajouter_classe(data)
+    data = ajouter_classe(data)
     stats = stats_generales(data)
 
-    # graphiques
     imgs = {
-        "hist":    fig_b64(graphique_histogramme(data)),
-        "nuage":   fig_b64(graphique_nuage_etude(data)),
+        "hist": fig_b64(graphique_histogramme(data)),
+        "nuage": fig_b64(graphique_nuage_etude(data)),
         "classes": fig_b64(graphique_repartition_classes(data)),
-        "sexe":    fig_b64(graphique_moyenne_sexe(data)),
-        "niveau":  fig_b64(graphique_moyenne_niveau(data)),
-        "corr":    fig_b64(graphique_correlations(data)),
+        "sexe": fig_b64(graphique_moyenne_sexe(data)),
+        "niveau": fig_b64(graphique_moyenne_niveau(data)),
+        "corr": fig_b64(graphique_correlations(data)),
         "boxplot": fig_b64(graphique_boxplot(data)),
     }
 
-    return render_template("generale.html",
-        vide=False, stats=stats, imgs=imgs, desc=DESCRIPTIONS
+    return render_template(
+        "generale.html",
+        vide=False,
+        stats=stats,
+        imgs=imgs,
+        desc=DESCRIPTIONS
     )
-create_table()    
-# ─────────────────────────────────────────────────────────────────
+
+# ─────────────────────────────
 if __name__ == "__main__":
- 
-    init_db()
-    app.run(host="0.0.0.0",port=22331)
-    
-    
-    
-    
+    app.run(host="0.0.0.0", port=10000)
