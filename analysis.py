@@ -5,9 +5,9 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import StandardScaler
-import sqlite3
+from database import connect
 
-DB_NAME = "student.db"
+
 
 # ── palette ───────────────────────────────────────────────────────
 NIGHT  = "#0D1B2A"
@@ -174,7 +174,7 @@ def _style_ax(ax, title="", xlabel="", ylabel=""):
 # ─────────────────────────────────────────────
 
 def afficher_donnees():
-    conn = sqlite3.connect(DB_NAME)
+    conn = connect()
     df   = pd.read_sql_query("SELECT * FROM student", conn)
     conn.close()
     return df
