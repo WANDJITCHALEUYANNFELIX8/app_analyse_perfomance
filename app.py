@@ -159,7 +159,7 @@ def generale():
 create_table()    
 # ─────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    create_table()
+ 
     init_db()
     app.run(host="0.0.0.0",port=22331)
     
