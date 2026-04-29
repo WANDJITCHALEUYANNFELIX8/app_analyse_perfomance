@@ -156,7 +156,7 @@ def generale():
     return render_template("generale.html",
         vide=False, stats=stats, imgs=imgs, desc=DESCRIPTIONS
     )
-
+create_table()    
 # ─────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     create_table()
