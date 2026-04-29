@@ -17,8 +17,10 @@ app.secret_key = "edustat_secret_2024"
 # INIT DB (Render safe)
 # ─────────────────────────────
 with app.app_context():
-    init_db()
-
+    try:
+        init_db()
+    except Exception as e:
+        print("DB non initialisée:", e)
 # ─────────────────────────────
 # UTIL: image matplotlib -> base64
 # ─────────────────────────────
