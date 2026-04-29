@@ -19,6 +19,91 @@ RED    = "#FF6B6B"
 AMBER  = "#EF9F27"
 WHITE  = "#E8F4FD"
 
+def expliquer_classe(moyenne, classe_ml, classe_finale):
+    """
+    Explication simple, humaine et compréhensible.
+    """
+
+    classe_moy = get_class_from_mean(moyenne)
+    exp = []
+
+    # 1. Explication de la moyenne
+    if moyenne < 10:
+        exp.append(f"📊 Ta moyenne est de {moyenne}. Cela montre que tu as encore des difficultés dans plusieurs matières.")
+    elif moyenne < 15:
+        exp.append(f"📊 Ta moyenne est de {moyenne}. Tu es dans une zone correcte, mais tu peux encore progresser.")
+    elif moyenne < 18:
+        exp.append(f"📊 Ta moyenne est de {moyenne}. Tu fais de bons résultats, continue comme ça.")
+    else:
+        exp.append(f"📊 Ta moyenne est de {moyenne}. Excellent travail, tu es parmi les meilleurs étudiants.")
+
+    # 2. Explication du modèle IA
+    if classe_ml == "faible":
+        exp.append("🤖 L'analyse de ton comportement montre que certains efforts sont encore insuffisants.")
+    elif classe_ml == "moyen":
+        exp.append("🤖 Ton comportement global est moyen : tu es régulier, mais pas encore optimal.")
+    elif classe_ml == "bon":
+        exp.append("🤖 Ton comportement est bon : tu es discipliné et sérieux dans ton travail.")
+    else:
+        exp.append("🤖 Ton comportement est excellent : tu es très organisé et régulier.")
+
+    # 3. Décision finale
+    if classe_finale == "faible":
+        exp.append("⚠️ Résultat final : niveau faible. Tu dois changer ta méthode de travail et t’organiser davantage.")
+    elif classe_finale == "moyen":
+        exp.append("📌 Résultat final : niveau moyen. Tu es sur la bonne voie, mais tu dois être plus constant.")
+    elif classe_finale == "bon":
+        exp.append("👍 Résultat final : bon niveau. Tu as de bonnes bases, continue tes efforts.")
+    else:
+        exp.append("🌟 Résultat final : excellent niveau. Félicitations, tu as un très bon profil académique.")
+
+    # 4. Message motivation
+    exp.append("💡 Conseil : la régularité et la discipline sont les clés de ta réussite.")
+
+    return exp
+
+
+# ─────────────────────────────────────────────
+# 🎯 NOUVEAU : CLASSE MÉTIER (MÉTHODE FIABLE)
+# ─────────────────────────────────────────────
+def get_class_from_mean(m):
+    if m < 10:
+        return "faible"
+    elif m < 15:
+        return "moyen"
+    elif m < 18:
+        return "bon"
+    else:
+        return "excellent"
+
+# ─────────────────────────────────────────────
+# 🎯 NOUVEAU : FUSION ML + MOYENNE (OPTION 3)
+# ─────────────────────────────────────────────
+def fusion_classe(moyenne, classe_ml):
+    """
+    Combine règle métier (70%) + ML (30%)
+    """
+    classe_moy = get_class_from_mean(moyenne)
+
+    poids = {
+        "faible": 1,
+        "moyen": 2,
+        "bon": 3,
+        "excellent": 4
+    }
+
+    score_final = (0.7 * poids[classe_moy]) + (0.3 * poids.get(classe_ml, 2))
+
+    if score_final < 1.5:
+        return "faible"
+    elif score_final < 2.5:
+        return "moyen"
+    elif score_final < 3.5:
+        return "bon"
+    else:
+        return "excellent"
+
+
 # ── descriptions des graphiques (utilisées dans les templates) ────
 DESCRIPTIONS = {
     "histogramme": (

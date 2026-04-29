@@ -101,9 +101,11 @@ def resultat():
             
             X_new = pd.DataFrame([[float(student_dict[f]) for f in features]], columns=features)
             
-            X_scaled = scaler.transform(X_new)
-            
-            classe_predite = predire_classe(model_clf, scaler, student_dict)
+            X_scaled = scaler.transform(X_new)            
+            classe_ml = model_clf.predict(X_scaled)[0]
+            moyenne = float(student.moyenne)
+            classe_finale = fusion_classe(moyenne, classe_ml)
+            explication = expliquer_classe(moyenne, classe_ml, classe_finale)
             
         except Exception as e:
             print("Erreur classification :", e)
@@ -111,15 +113,16 @@ def resultat():
     
     # générer les conseils
     moy_gen = round(data["moyenne"].mean(), 2) if len(data) > 0 else "N/A"
-    conseils=generer_conseils(student, classe_predite, moy_gen)     
+    conseils=generer_conseils(student, classe_finale, moy_gen)     
     
 
     return render_template(
         "individuelle.html",
         student=student,
-        classe_predite=classe_predite,
+        classe_predite=classe_finale,
         moyenne_generale=moy_gen,
-        conseils=conseils
+        conseils=conseils,
+        explication=explication
     )
 
 # ─────────────────────────────────────────────────────────────────

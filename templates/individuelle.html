@@ -2,7 +2,7 @@
 {% block title %}Mon résultat — EduStat{% endblock %}
 
 {% block content %}
-<h1>👤 Ton résultat personnel</h1>
+<h1> Ton résultat personnel</h1>
 <p class="page-subtitle">Basé sur les données que tu viens de soumettre</p>
 
 <div class="two-cols-grid">
@@ -22,6 +22,16 @@
     {% else %}
       <span class="badge badge-neutral">{{ classe_predite }}</span>
     {% endif %}
+  </div>
+  
+  <div class="card">
+    <h2>🧠 Explication de la décision</h2>
+
+    <ul>
+      {% for e in explication %}
+        <li>{{ e }}</li>
+      {% endfor %}
+    </ul>
   </div>
 
   <div class="card border-blue">
