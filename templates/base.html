@@ -8,7 +8,7 @@
 </head>
 <body>
   <nav>
-    <div class="nav-logo">Edu<span>Stat</span></div>
+    <div  style="display:flex;align-items:center;gap:10px;" class="nav-logo"><img src="{{ url_for('static', filename='image/edustat.png') }}" alt="Logo" style="height:42px; border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,.2)">EduStat</div>
     <div class="nav-links">
       <a href="/" {% if request.path == '/' %}class="active"{% endif %}>Accueil</a>
       <a href="/formulaire" {% if request.path == '/formulaire' %}class="active"{% endif %}>Formulaire</a>
