@@ -4,7 +4,9 @@ import os
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 def connect():
-    return psycopg2.connect(DATABASE_URL)
+    if not DATABASE_URL:
+        raise Exception("DATABASE_URL non définie")
+    return psycopg2.connect(DATABASE_URL,sslmode='require')
 
 def init_db():
     conn = connect()
