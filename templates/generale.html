@@ -2,99 +2,216 @@
 {% block title %}Analyse générale — EduStat{% endblock %}
 
 {% block content %}
-<h1>Analyse générale</h1>
-<p class="page-subtitle">Vue d'ensemble de toute la promotion</p>
+
+<div class="section-title anim-up">📊 Analyse générale</div>
+<p style="color:rgba(232,244,253,.5);font-size:14px;margin-bottom:28px" class="anim-up delay-1">
+  Analyse descriptive complète de la promotion
+</p>
 
 {% if vide %}
-  <div class="card empty">
-    <div class="icon">📭</div>
-    <h2>Aucune donnée disponible</h2>
-    <p>Commence par remplir le formulaire pour alimenter la base.</p>
+  <div class="card" style="text-align:center;padding:60px">
+    <div style="font-size:52px;margin-bottom:16px">📭</div>
+    <h2 style="border:none">Aucune donnée disponible</h2>
+    <p style="color:rgba(232,244,253,.45);margin:12px 0 24px">Commence par remplir le formulaire.</p>
     <a href="/formulaire" class="btn-primary">Aller au formulaire</a>
   </div>
 
 {% else %}
 
-  <div class="stats-grid">
-    <div class="stat-box">
-      <div class="val">{{ stats.nb }}</div>
-      <div class="lbl">Étudiants</div>
-    </div>
-    <div class="stat-box">
-      <div class="val">{{ stats.moy_gen }}</div>
-      <div class="lbl">Moyenne générale</div>
-    </div>
-    <div class="stat-box">
-      <div class="val">{{ stats.moy_min }}</div>
-      <div class="lbl">Moyenne minimale</div>
-    </div>
-    <div class="stat-box">
-      <div class="val">{{ stats.moy_max }}</div>
-      <div class="lbl">Moyenne maximale</div>
-    </div>
+<!-- ── 1. MÉTRIQUES RAPIDES ── -->
+<div class="stats-grid">
+  <div class="stat-box anim-up">
+    <div class="stat-val">{{ stats.nb }}</div>
+    <div class="stat-lbl">Étudiants</div>
   </div>
+  <div class="stat-box anim-up delay-1">
+    <div class="stat-val">{{ stats.moy_gen }}</div>
+    <div class="stat-lbl">Moyenne générale /20</div>
+  </div>
+  <div class="stat-box anim-up delay-2">
+    <div class="stat-val">{{ stats.moy_mediane }}</div>
+    <div class="stat-lbl">Médiane /20</div>
+  </div>
+  <div class="stat-box anim-up delay-3">
+    <div class="stat-val">{{ stats.moy_ecart }}</div>
+    <div class="stat-lbl">Écart-type</div>
+  </div>
+  <div class="stat-box anim-up delay-4">
+    <div class="stat-val">{{ stats.moy_min }}</div>
+    <div class="stat-lbl">Minimum /20</div>
+  </div>
+  <div class="stat-box anim-up delay-4">
+    <div class="stat-val">{{ stats.moy_max }}</div>
+    <div class="stat-lbl">Maximum /20</div>
+  </div>
+</div>
 
-  <div class="two-cols-grid">
-    <div class="card">
-      <h2>Moyenne par sexe</h2>
+<!-- ── 2. RÉPARTITION EFFECTIFS ── -->
+<div class="section-title anim-left">👥 Répartition des effectifs</div>
+<div class="two-cols anim-up">
+
+  <div class="card">
+    <h2>Par sexe</h2>
+    <table class="info-table">
+      {% for sexe, nb in stats.nb_sexe.items() %}
+      <tr>
+        <td>{{ "Masculin" if sexe == "M" else "Féminin" }}</td>
+        <td><strong style="color:var(--sky)">{{ nb }}</strong> étudiant{{ 's' if nb > 1 else '' }}</td>
+      </tr>
+      {% endfor %}
       {% for sexe, moy in stats.par_sexe.items() %}
-      <div class="bar-row">
-        <span class="bar-label">{{ sexe }}</span>
-        <div class="bar-wrap">
-          <div class="compare-bar">
-            <div class="compare-fill" style="width:{{ (moy/20*100)|round }}%"></div>
-          </div>
-        </div>
-        <span class="bar-value">{{ moy }}</span>
-      </div>
+      <tr>
+        <td>Moy. {{ "hommes" if sexe == "M" else "femmes" }}</td>
+        <td><strong style="color:var(--green)">{{ moy }} /20</strong></td>
+      </tr>
       {% endfor %}
-    </div>
-
-    <div class="card">
-      <h2>Répartition des classes</h2>
-      {% for classe, nb in stats.repartition.items() %}
-      <div class="repartition-row">
-        {% if classe == 'faible' %}
-          <span class="badge badge-faible">{{ classe }}</span>
-        {% elif classe == 'moyen' %}
-          <span class="badge badge-moyen">{{ classe }}</span>
-        {% elif classe == 'bon' %}
-          <span class="badge badge-bon">{{ classe }}</span>
-        {% elif classe == 'excellent' %}
-          <span class="badge badge-excellent">{{ classe }}</span>
-        {% endif %}
-        <span class="repartition-count">{{ nb }} étudiant{{ 's' if nb > 1 else '' }}</span>
-      </div>
-      {% endfor %}
-    </div>
+    </table>
   </div>
 
-  <div class="graphs-grid">
-    {% if img_hist %}
-    <div class="graph-box">
-      <h3>Distribution des moyennes</h3>
-      <img src="data:image/png;base64,{{ img_hist }}" alt="Histogramme des moyennes">
-    </div>
-    {% endif %}
-    {% if img_scatter %}
-    <div class="graph-box">
-      <h3>Étude vs Performance</h3>
-      <img src="data:image/png;base64,{{ img_scatter }}" alt="Scatter étude vs moyenne">
-    </div>
-    {% endif %}
-    {% if img_classes %}
-    <div class="graph-box">
-      <h3>Répartition par classe</h3>
-      <img src="data:image/png;base64,{{ img_classes }}" alt="Répartition des classes">
-    </div>
-    {% endif %}
-    {% if img_cluster %}
-    <div class="graph-box">
-      <h3>Clustering des profils étudiants</h3>
-      <img src="data:image/png;base64,{{ img_cluster }}" alt="Clustering K-Means">
-    </div>
-    {% endif %}
+  <div class="card">
+    <h2>Par niveau</h2>
+    <table class="info-table">
+      {% for niveau, nb in stats.nb_niveau.items() %}
+      <tr>
+        <td>{{ niveau }}</td>
+        <td>
+          <span style="color:var(--sky);font-weight:700">{{ nb }}</span> étudiants
+          — moy. <span style="color:var(--green);font-weight:700">{{ stats.par_niveau[niveau] }}</span>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
   </div>
+
+</div>
+
+<!-- ── 3. CORRÉLATIONS ── -->
+<div class="section-title anim-left">🔗 Corrélations avec la moyenne</div>
+<div class="two-cols anim-up">
+
+  <div class="card">
+    <h2>Valeurs des corrélations</h2>
+    <table class="info-table">
+      <tr>
+  <td>Temps d'étude</td>
+  <td>
+    <span style="color:{% if stats.corrs.etude > 0 %}var(--green){% else %}var(--red){% endif %};font-weight:700">
+      {{ stats.corrs.etude }}
+    </span>
+  </td>
+</tr>
+
+<tr>
+  <td>Sommeil</td>
+  <td>
+    <span style="color:{% if stats.corrs.sommeil > 0 %}var(--green){% else %}var(--red){% endif %};font-weight:700">
+      {{ stats.corrs.sommeil }}
+    </span>
+  </td>
+</tr>
+
+<tr>
+  <td>Distraction</td>
+  <td>
+    <span style="color:{% if stats.corrs.distraction > 0 %}var(--green){% else %}var(--red){% endif %};font-weight:700">
+      {{ stats.corrs.distraction }}
+    </span>
+  </td>
+</tr>
+
+<tr>
+  <td>Assiduité</td>
+  <td>
+    <span style="color:{% if stats.corrs.assiduite > 0 %}var(--green){% else %}var(--red){% endif %};font-weight:700">
+      {{ stats.corrs.assiduite }}
+    </span>
+  </td>
+</tr>
+<tr>
+  <td>Ponctualité</td>
+  <td>
+    <span style="color:{% if stats.corrs.ponctualite > 0 %}var(--green){% else %}var(--red){% endif %};font-weight:700">
+      {{ stats.corrs.ponctualite }}
+    </span>
+  </td>
+</tr>
+<tr>
+  <td>Discipline</td>
+  <td>
+    <span style="color:{% if stats.corrs.discipline > 0 %}var(--green){% else %}var(--red){% endif %};font-weight:700">
+      {{ stats.corrs.discipline }}
+    </span>
+  </td>
+</tr>
+<tr>
+  <td>Temps d'exécution des taches</td>
+  <td>
+    <span style="color:{% if stats.corrs.tache > 0 %}var(--green){% else %}var(--red){% endif %};font-weight:700">
+      {{ stats.corrs.tache }}
+    </span>
+  </td>
+</tr>
+    </table>
+    <p style="font-size:12px;color:rgba(232,244,253,.4);margin-top:12px">
+      Valeur proche de +1 = forte relation positive. Proche de -1 = relation inverse. Proche de 0 = pas de lien.
+    </p>
+  </div>
+
+  <div class="graph-card anim-right">
+    <div class="graph-title">Corrélations — toutes les variables</div>
+    <div class="graph-desc">Les barres vertes indiquent une influence positive sur la moyenne, les barres rouges une influence négative.</div>
+    <img src="data:image/png;base64,{{ imgs.corr }}" alt="Corrélations">
+  </div>
+
+</div>
+
+<!-- ── 4. GRAPHIQUES DISTRIBUTION ── -->
+<div class="section-title anim-left">📈 Distribution des données</div>
+<div class="graphs-grid">
+
+  <div class="graph-card anim-left">
+    <div class="graph-title">Distribution des moyennes</div>
+    <div class="graph-desc">Histogramme de toutes les notes. Chaque barre représente un intervalle. La couleur plus intense indique un plus grand nombre d'étudiants dans cet intervalle.</div>
+    <img src="data:image/png;base64,{{ imgs.hist }}" alt="Distribution des moyennes">
+  </div>
+
+  <div class="graph-card anim-right">
+    <div class="graph-title">Répartition par classe</div>
+    <div class="graph-desc">Nombre d'étudiants dans chaque classe (faible/moyen/bon/excellent). Les classes sont définies selon les seuils : &lt;10, 10–15, 15–18, ≥18.</div>
+    <img src="data:image/png;base64,{{ imgs.classes }}" alt="Répartition des classes">
+  </div>
+
+  <div class="graph-card anim-left delay-1">
+    <div class="graph-title">Moyenne par sexe</div>
+    <div class="graph-desc">Comparaison des performances moyennes entre étudiants masculins et féminins.</div>
+    <img src="data:image/png;base64,{{ imgs.sexe }}" alt="Moyenne par sexe">
+  </div>
+
+  <div class="graph-card anim-right delay-1">
+    <div class="graph-title">Moyenne par niveau</div>
+    <div class="graph-desc">Évolution de la moyenne selon le niveau d'études. Permet de voir si les étudiants progressent au fil des années.</div>
+    <img src="data:image/png;base64,{{ imgs.niveau }}" alt="Moyenne par niveau">
+  </div>
+  
+   <div class="graph-card anim-left delay-1">
+     <div class="graph-title">Boite à Moustache</div>
+     <div class="graph-desc">Chaque boîte montre la distribution d'une variable. Le trait central = médiane, la boîte = 1er au 3e quartile (50% des données),les moustaches = valeurs min/max hors valeurs aberrantes (points isolés).</div>
+    <img src="data:image/png;base64,{{ imgs.boxplot }}" alt="Boite à Moustache">
+  </div>
+
+</div>
+
+<!-- ── 5. NUAGE DE POINTS ── -->
+<div class="section-title anim-left">🔵 Nuage de points</div>
+<div class="graph-card anim-up" style="max-width:800px;margin-inline:auto">
+  <div class="graph-title">Étude vs Moyenne — Nuage de points</div>
+  <div class="graph-desc">
+    Chaque point représente un étudiant. L'axe horizontal = temps d'étude quotidien, l'axe vertical = moyenne obtenue.
+    La couleur de chaque point varie selon la note (du bleu pour les basses notes au violet pour les hautes).
+    Une tendance montante confirme l'impact positif du travail sur les résultats.
+  </div>
+  <img src="data:image/png;base64,{{ imgs.nuage }}" alt="Nuage de points étude vs moyenne">
+</div>
 
 {% endif %}
 {% endblock %}

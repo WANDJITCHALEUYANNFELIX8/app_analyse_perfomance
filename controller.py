@@ -1,24 +1,29 @@
 from models import Student
-from database import insert_student
+from database import *
 
 
 def process_student(form_data):
 
     student = Student(
-        age=form_data["age"],
+        age=int(form_data["age"]),
         sexe=form_data["sexe"],
-        etude=form_data["etude"],
-        sommeil=form_data["sommeil"],
-        distraction=form_data["distraction"],
-        env=form_data["env"],
-        assiduite=form_data["assiduite"],
-        ponctualite=form_data["ponctualite"],
-        discipline=form_data["discipline"],
-        tache=form_data["tache"],
+        etude=float(form_data["etude"]),
+        sommeil=float(form_data["sommeil"]),
+        distraction=float(form_data["distraction"]),
+        env=int(form_data["env"]),
+        assiduite=float(form_data["assiduite"]),
+        ponctualite=float(form_data["ponctualite"]),
+        discipline=float(form_data["discipline"]),
+        tache=float(form_data["tache"]),
         niveau=form_data["niveau"],
-        moyenne=form_data["moyenne"]
+        moyenne=float(form_data["moyenne"])
+    
     )
 
     insert_student(student.to_tuple())
 
     return student
+    
+
+    
+    

@@ -3,8 +3,8 @@
 
 {% block content %}
 <div class="card" style="max-width:800px; margin-inline:auto;">
-  <h2>📋 Saisie des données étudiant</h2>
-  <p>Remplis tous les champs. Après soumission, tu verras ton résultat personnalisé immédiatement.</p>
+  <h2>Saisie des données étudiant</h2>
+  <p>Remplis tous les champs. Après soumission, tu verras ton résultat personnalisé immédiatement.<br><br></p>
 
   <form action="/submit" method="POST">
     <div class="form-grid">
@@ -33,7 +33,7 @@
         <input type="number" name="distraction" min="0" max="10" placeholder="Ex: 4" required>
       </div>
       <div class="form-group">
-        <label>Qualité de l'environnement (1–5)</label>
+        <label>Qualité de l'environnement (1–5) en d'autres termes le niveau d'aisance sur une echelle de 1 à 5</label>
         <input type="number" name="env" min="1" max="5" placeholder="Ex: 3" required>
       </div>
       <div class="form-group">
@@ -49,7 +49,7 @@
         <input type="number" name="discipline" min="0" max="10" placeholder="Ex: 6" required>
       </div> 
       <div class="form-group">
-        <label>Tâches effectuées (0–10)</label>
+        <label> Temps d'execution des tâches (0–10)</label>
         <input type="number" name="tache" min="0" max="10" placeholder="Ex: 7" required>
       </div>
       <div class="form-group">

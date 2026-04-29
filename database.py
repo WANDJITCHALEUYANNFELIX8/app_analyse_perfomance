@@ -1,10 +1,14 @@
-import sqlite3
+import psycopg2
+import os
 
-DB_NAME = "student.db"
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
 
 def connect():
-    return sqlite3.connect(DB_NAME)
+    if DATABASE_URL:
+        return psycopg2.connect(DATABASE_URL)
+    else:
+        return sqlite3.connect("student.db")
 
 
 def create_table():
@@ -12,7 +16,7 @@ def create_table():
     cursor = conn.cursor()
 
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS students (
+        CREATE TABLE IF NOT EXISTS student (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             age INTEGER,
             sexe TEXT,
@@ -38,7 +42,7 @@ def insert_student(data_tuple):
     cursor = conn.cursor()
 
     cursor.execute("""
-        INSERT INTO students (
+        INSERT INTO student (
             age, sexe, etude, sommeil, distraction,
             env, assiduite, ponctualite, discipline,
             tache, niveau, moyenne
@@ -55,7 +59,7 @@ def count_students():
  
     conn = connect()
     cursor = conn.cursor()
-    cursor.execute("SELECT COUNT(*) FROM students")
+    cursor.execute("SELECT COUNT(*) FROM student")
     nb = cursor.fetchone()[0]
     conn.close()
     return nb
@@ -64,7 +68,7 @@ def get_all_students():
     
     conn = connect()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM students")
+    cursor.execute("SELECT * FROM student")
     rows = cursor.fetchall()
     cols = [desc[0] for desc in cursor.description]
     conn.close()

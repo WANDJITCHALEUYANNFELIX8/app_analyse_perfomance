@@ -1,33 +1,46 @@
-from flask import Flask, request, render_template, redirect, url_for
-from controller import process_student
-from database import create_table, get_all_students, count_students
-from analysis import *
+from flask import Flask, request, render_template, redirect, url_for, session
 import io, base64, matplotlib
-matplotlib.use('Agg')  # pas d'interface graphique, on génère des images
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import os
+from models import Student
+from sklearn.preprocessing import StandardScaler
+import pandas as pd
+from controller import process_student
+from database   import *
+from analysis   import *
 
 app = Flask(__name__)
+app.secret_key = "edustat_secret_2024"   # nécessaire pour session
 
-# ── utilitaire : convertir une figure matplotlib en image base64 pour HTML ──
-def fig_to_base64(fig):
+# ── figure → base64 ───────────────────────────────────────────────
+def fig_b64(fig):
     buf = io.BytesIO()
     fig.savefig(buf, format="png", bbox_inches="tight")
     buf.seek(0)
-    img_b64 = base64.b64encode(buf.read()).decode("utf-8")
+    img = base64.b64encode(buf.read()).decode()
     plt.close(fig)
-    return img_b64
+    return img
 
-# ────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────
 # ACCUEIL
-# ────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────
 @app.route('/')
 def home():
-    nb = count_students()
-    return render_template("index.html", nb_etudiants=nb)
+    nb    = count_students()
+    stats = {}
+    if nb > 0:
+        data = ajouter_classe(afficher_donnees())
+        stats = {
+            "moy_gen":       round(data["moyenne"].mean(), 2),
+            "classe_top":    data["classe"].value_counts().idxmax().title(),
+            "nb_excellents": int((data["classe"] == "excellent").sum())
+        }
+    return render_template("index.html", nb=nb, stats=stats)
 
-# ────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────
 # FORMULAIRE
-# ────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────
 @app.route('/formulaire')
 def formulaire():
     return render_template("formulaire.html")
@@ -48,104 +61,99 @@ def submit():
         "niveau":      request.form["niveau"],
         "moyenne":     request.form["moyenne"]
     }
-
     student = process_student(form_data)
+    
+    session["last_student"] = vars(student)
+    
+    return redirect(url_for("resultat"))   
 
+
+
+# ─────────────────────────────────────────────────────────────────
+# RÉSULTAT INDIVIDUEL  (GET uniquement)
+# ─────────────────────────────────────────────────────────────────
+@app.route('/resultat')
+def resultat():
+    
+      # 🔥 récupérer depuis session
+    student_dict = session.get("last_student")
+    
+    if not student_dict:
+        return redirect(url_for("formulaire"))
+    
+    student = Student(**student_dict)#reconstruction de l'objet
+           
     # prédiction ML pour cet étudiant
+    
     data = afficher_donnees()
-    if len(data) >= 5:   # besoin d'assez de données pour entraîner
-        data = ajouter_classe(data)
+    if "classe" not in data.columns:
+        data = ajouter_classe(data) 
+    
+    classe_predite = "indisponible"
+
+    if len(data) >= 10 and data["classe"].nunique() >= 2:
         try:
-            model_clf, X_test,y_test,y_pred = classification_modele(data)
-            
-            import pandas as pd
-            from sklearn.preprocessing import StandardScaler
-            
+          
+            model_clf, scaler, acc = classification_modele(data)
+                 
             features = ["etude","sommeil","distraction","assiduite","ponctualite","discipline","tache"]
                 
             
-            X_new = pd.DataFrame([[float(form_data[f]) for f in features]], columns=features)
+            X_new = pd.DataFrame([[float(student_dict[f]) for f in features]], columns=features)
             
-            scaler = StandardScaler()
-            scaler.fit(data[features])
             X_scaled = scaler.transform(X_new)
             
-            classe_predite = model_clf.predict(X_scaled)[0]
-        except Exception:
-            classe_predite = "Non disponible (pas assez de données)"
-    else:
-        classe_predite = "Non disponible (pas assez de données)"
+            classe_predite = predire_classe(model_clf, scaler, student_dict)
+            
+        except Exception as e:
+            print("Erreur classification :", e)
+    
+    
+    # générer les conseils
+    moy_gen = round(data["moyenne"].mean(), 2) if len(data) > 0 else "N/A"
+    conseils=generer_conseils(student, classe_predite, moy_gen)     
+    
 
-    # comparaison avec la moyenne générale
-    moy_gen = round(moyenne_generale(data), 2) if len(data) > 0 else "N/A"
-
-    return render_template("individuelle.html",
-        student=vars(student),
+    return render_template(
+        "individuelle.html",
+        student=student,
         classe_predite=classe_predite,
-        moyenne_generale=moy_gen
+        moyenne_generale=moy_gen,
+        conseils=conseils
     )
 
-# ────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────
 # ANALYSE GÉNÉRALE
-# ────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────
 @app.route('/generale')
 def generale():
     data = afficher_donnees()
-
     if len(data) == 0:
         return render_template("generale.html", vide=True)
 
-    data = ajouter_classe(data)
+    data  = ajouter_classe(data)
+    stats = stats_generales(data)
 
-    # stats textuelles
-    stats = {
-        "nb":       len(data),
-        "moy_gen":  round(data["moyenne"].mean(), 2),
-        "moy_min":  round(data["moyenne"].min(), 2),
-        "moy_max":  round(data["moyenne"].max(), 2),
-        "par_sexe": moyenne_par_sexe(data).round(2).to_dict(),
-        "par_niveau": moyenne_par_niveau(data).round(2).to_dict(),
-        "repartition": data["classe"].value_counts().to_dict()
+    # graphiques
+    imgs = {
+        "hist":    fig_b64(graphique_histogramme(data)),
+        "nuage":   fig_b64(graphique_nuage_etude(data)),
+        "classes": fig_b64(graphique_repartition_classes(data)),
+        "sexe":    fig_b64(graphique_moyenne_sexe(data)),
+        "niveau":  fig_b64(graphique_moyenne_niveau(data)),
+        "corr":    fig_b64(graphique_correlations(data)),
+        "boxplot": fig_b64(graphique_boxplot(data)),
     }
 
-    # graphique 1 : histogramme des moyennes
-    fig1=histogramme_moyenne(data)
-    img1 = fig_to_base64(fig1)
-
-    # graphique 2 : étude vs moyenne
-    fig2=relation_etude_moyenne(data)
-    img2 = fig_to_base64(fig2)
-
-    # graphique 3 : répartition des classes
-    fig3, ax3 = plt.subplots()
-    repartition = data["classe"].value_counts()
-    couleurs = ["#E24B4A","#EF9F27","#378ADD","#1D9E75"]
-    ax3.bar(repartition.index, repartition.values, color=couleurs[:len(repartition)])
-    ax3.set_title("Répartition des classes")
-    ax3.set_xlabel("Classe")
-    ax3.set_ylabel("Nombre d'étudiants")
-    img3 = fig_to_base64(fig3)
-
-    # graphique 4 : clustering
-    img4 = None
-    if len(data) >= 3:
-        try:
-            data, _ = clustering_etudiants(data)
-            fig4=plot_clusters(data)
-            img4 = fig_to_base64(fig4)
-        except Exception:
-            pass
-
     return render_template("generale.html",
-        vide=False,
-        stats=stats,
-        img_hist=img1,
-        img_scatter=img2,
-        img_classes=img3,
-        img_cluster=img4
+        vide=False, stats=stats, imgs=imgs, desc=DESCRIPTIONS
     )
 
-# ────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     create_table()
-    app.run(debug=True)
+    app.run(host="0.0.0.0",port=22331)
+    
+    
+    
+    
