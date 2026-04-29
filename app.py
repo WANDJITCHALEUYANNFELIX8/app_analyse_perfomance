@@ -11,10 +11,12 @@ from database   import *
 from analysis   import *
 
 
-with app.app_context():
-    init_db()
+
 app = Flask(__name__)
 app.secret_key = "edustat_secret_2024"   # nécessaire pour session
+
+with app.app_context():
+    init_db()
 
 # ── figure → base64 ───────────────────────────────────────────────
 def fig_b64(fig):
