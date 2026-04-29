@@ -10,6 +10,9 @@ from controller import process_student
 from database   import *
 from analysis   import *
 
+
+with app.app_context():
+    init_db()
 app = Flask(__name__)
 app.secret_key = "edustat_secret_2024"   # nécessaire pour session
 
@@ -155,6 +158,7 @@ def generale():
 # ─────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     create_table()
+    init_db()
     app.run(host="0.0.0.0",port=22331)
     
     

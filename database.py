@@ -75,3 +75,37 @@ def get_all_students():
     conn.close()
     return [dict(zip(cols, row)) for row in rows]
     
+def init_db():
+    conn = connect()
+    cur = conn.cursor()
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS student (
+        id SERIAL PRIMARY KEY,
+        age INT,
+        sexe TEXT,
+        etude FLOAT,
+        sommeil FLOAT,
+        distraction FLOAT,
+        env FLOAT,
+        assiduite FLOAT,
+        ponctualite FLOAT,
+        discipline FLOAT,
+        tache FLOAT,
+        niveau TEXT,
+        moyenne FLOAT
+    )
+    """)
+
+    conn.commit()
+    conn.close()    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
