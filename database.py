@@ -18,25 +18,24 @@ def create_table():
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS student (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            age INTEGER,
-            sexe TEXT,
-            etude REAL,
-            sommeil REAL,
-            distraction REAL,
-            env INTEGER,
-            assiduite INTEGER,
-            ponctualite INTEGER,
-            discipline INTEGER,
-            tache INTEGER,
-            niveau TEXT,
-            moyenne REAL
+            id SERIAL PRIMARY KEY,
+            age INT,
+            sexe VARCHAR(2),
+            etude FLOAT,
+            sommeil FLOAT,
+            distraction FLOAT,
+            env FLOAT,
+            assiduite FLOAT,
+            ponctualite FLOAT,
+            discipline FLOAT,
+            tache FLOAT,
+            niveau VARCHAR(10),
+            moyenne FLOAT
         )
     """)
 
     conn.commit()
     conn.close()
-
 
 def insert_student(data_tuple):
     conn = connect()
