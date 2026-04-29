@@ -5,6 +5,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.metrics import r2_score
 from database import connect
 
 
@@ -264,20 +266,6 @@ def graphique_histogramme(data):
     plt.tight_layout()
     return fig
 
-def graphique_nuage_etude(data):
-    """Nuage de points étude vs moyenne."""
-    fig, ax = plt.subplots(figsize=(7, 4))
-    sc = ax.scatter(data["etude"], data["moyenne"],
-                    c=data["moyenne"], cmap="cool",
-                    s=70, alpha=0.85, edgecolors=NIGHT, linewidths=0.5)
-    cb = plt.colorbar(sc, ax=ax)
-    cb.ax.yaxis.set_tick_params(color=WHITE)
-    plt.setp(cb.ax.yaxis.get_ticklabels(), color=WHITE)
-    cb.set_label("Moyenne", color=WHITE, fontsize=9)
-    _style_ax(ax, title=DESCRIPTIONS["nuage"][0],
-              xlabel="Temps d'étude (h/jour)", ylabel="Moyenne (/20)")
-    plt.tight_layout()
-    return fig
 
 def graphique_repartition_classes(data):
     """Répartition des classes avec labels sur les barres."""
@@ -461,3 +449,84 @@ def generer_conseils(student, classe_predite,moyenne_generale):
         conseils.insert(0, f"🔥 PRIORITÉ : {priorite}")        
 
     return conseils
+    
+
+def regression_multiple(data):
+    features = [
+        "etude", "sommeil", "distraction",
+        "assiduite", "ponctualite", "discipline", "tache"
+    ]
+
+    X = data[features]
+    y = data["moyenne"]
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
+
+    model = LinearRegression()
+    model.fit(X_train, y_train)
+
+    y_pred = model.predict(X_test)
+
+    score = r2_score(y_test, y_pred)
+
+    return model, score    
+    
+def appliquer_pca(data):
+    features = [
+        "etude", "sommeil", "distraction",
+        "assiduite", "ponctualite", "discipline", "tache"
+    ]
+
+    X = data[features]
+
+    # standardisation (IMPORTANT pour PCA)
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    # PCA → 2 dimensions
+    pca = PCA(n_components=2)
+    components = pca.fit_transform(X_scaled)
+
+    df_pca = pd.DataFrame({
+        "PC1": components[:, 0],
+        "PC2": components[:, 1],
+        "moyenne": data["moyenne"],
+        "classe": data["classe"]
+    })
+
+    return df_pca, pca.explained_variance_ratio_
+
+def plot_pca(df_pca):
+    fig, ax = plt.subplots(figsize=(8, 5))
+
+    sc = ax.scatter(
+        df_pca["PC1"],
+        df_pca["PC2"],
+        c=df_pca["moyenne"],
+        cmap="viridis",
+        s=80,
+        alpha=0.9,
+        edgecolors="#0D1B2A"
+    )
+
+    plt.colorbar(sc, label="Moyenne")
+
+    _style_ax(
+        ax,
+        title="Projection PCA des étudiants",
+        xlabel="PC1 → Performance globale",
+        ylabel="PC2 → Style de travail"
+    )
+
+    return fig
+
+def analyser_pca(data):
+    df_pca, variance = appliquer_pca(data)
+
+    fig = plot_pca(df_pca)
+
+
+    return df_pca, fig, variance
+

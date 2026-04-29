@@ -50,13 +50,6 @@ def home():
 
     return render_template("index.html", nb=nb, stats=stats)
 
-@app.route("/seed")
-def seed():
-    from test import seed_students, clear_table
-    clear_table()
-    seed_students(100)
-    return "DB seeded"
-
 # ─────────────────────────────
 # FORMULAIRE
 # ─────────────────────────────
@@ -151,15 +144,17 @@ def generale():
 
     data = ajouter_classe(data)
     stats = stats_generales(data)
-
+    
+    df_pca, fig0, variance = analyser_pca(data)
+    
     imgs = {
         "hist": fig_b64(graphique_histogramme(data)),
-        "nuage": fig_b64(graphique_nuage_etude(data)),
         "classes": fig_b64(graphique_repartition_classes(data)),
         "sexe": fig_b64(graphique_moyenne_sexe(data)),
         "niveau": fig_b64(graphique_moyenne_niveau(data)),
         "corr": fig_b64(graphique_correlations(data)),
         "boxplot": fig_b64(graphique_boxplot(data)),
+        "pca": fig_b64(fig0)
     }
 
     return render_template(
@@ -168,8 +163,11 @@ def generale():
         stats=stats,
         imgs=imgs,
         desc=DESCRIPTIONS
+       
     )
 
 # ─────────────────────────────
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
+    
+    

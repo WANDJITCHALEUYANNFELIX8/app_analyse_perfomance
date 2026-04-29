@@ -204,13 +204,29 @@
 <!-- ── 5. NUAGE DE POINTS ── -->
 <div class="section-title anim-left">🔵 Nuage de points</div>
 <div class="graph-card anim-up" style="max-width:800px;margin-inline:auto">
-  <div class="graph-title">Étude vs Moyenne — Nuage de points</div>
-  <div class="graph-desc">
-    Chaque point représente un étudiant. L'axe horizontal = temps d'étude quotidien, l'axe vertical = moyenne obtenue.
-    La couleur de chaque point varie selon la note (du bleu pour les basses notes au violet pour les hautes).
-    Une tendance montante confirme l'impact positif du travail sur les résultats.
+  <div class="graph-title"> PCA — Nuage de points</div>
+  <div class="graph-desc">PC1 représente la performance globale de l’étudiant. Il est dominé par les variables académiques comme :
+<br>  
+étude
+<br>
+discipline
+<br>
+assiduité
+<br>
+👉 Plus PC1 est élevé → meilleur étudiant
+<br><br>
+PC2 représente le style de travail.
+Il différencie :
+
+étudiants réguliers et 
+étudiants irréguliers mais parfois efficaces
+<br>
+Cet axe représente la manière de travailler : régularité, sommeil, distraction. Il ne mesure pas si l’étudiant est bon ou mauvais, mais son comportement.
+<br>
+👉 PC2 ne dit pas si l’étudiant est bon ou mauvais
+
   </div>
-  <img src="data:image/png;base64,{{ imgs.nuage }}" alt="Nuage de points étude vs moyenne">
+  <img src="data:image/png;base64,{{ imgs.pca}}" alt="Nuage de points PCA">
 </div>
 
 {% endif %}
