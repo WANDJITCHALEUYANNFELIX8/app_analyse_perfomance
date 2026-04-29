@@ -1,0 +1,7 @@
+Flask
+pandas
+sqlite3
+matplotlib
+scikit-learn
+psycopg2-binary
+gunicorn

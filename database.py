@@ -1,5 +1,6 @@
 import psycopg2
 import os
+import sqlite3
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 

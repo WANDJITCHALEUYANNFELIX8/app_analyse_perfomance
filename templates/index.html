@@ -5,7 +5,7 @@
 <div class="hero">
   <h1>Analyse des <span>performances</span><br>étudiantes</h1>
   <p>Plateforme d'analyse basée sur le machine learning pour comprendre les habitudes et prédire les résultats académiques.</p>
-  <span class="hero-badge">{{ nb }} étudiant{{ 's' if nb_etudiants != 1 else '' }} en base</span>
+  <span class="hero-badge">{{ nb }} étudiant{{ 's' if nb != 1 && nb != 0 else '' }} en base</span>
   <div class="hero-buttons">
     <a href="/formulaire" class="btn-primary">Remplir le formulaire</a>
     <a href="/generale" class="btn-secondary">Voir l'analyse générale</a>
