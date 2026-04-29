@@ -423,4 +423,65 @@ nav {
   nav { padding:0 18px; }
   .container { padding:28px 16px; }
   .stats-grid { grid-template-columns:1fr 1fr; }
+   .two-cols-grid {
+    grid-template-columns: 1fr !important;
+    gap: 14px;
+  }
+
+  .result-hero {
+    padding: 22px 16px;
+    border-radius: 14px;
+  }
+
+  .result-classe {
+    font-size: 30px;
+  }
+
+  .card {
+    padding: 18px 16px;
+  }
+
+  /* explication plus confortable */
+  .card ul li {
+    font-size: 14px;
+  }
+
+  /* éviter effet trop large */
+  .metric-value {
+    font-size: 22px;
+  }
+
 }
+
+/* ─────────────────────────────────────────────
+   FIX RÉSULTAT INDIVIDUEL + MOBILE
+──────────────────────────────────────────── */
+
+/* Empêche débordement texte */
+.result-hero,
+.card,
+.metric-card {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Liste explication bien lisible */
+.card ul {
+  padding-left: 18px;
+  line-height: 1.6;
+}
+
+/* Classe prédite plus propre */
+.result-classe {
+  font-size: clamp(28px, 6vw, 44px);
+  word-break: break-word;
+}
+
+/* grille résultat -> responsive propre */
+.two-cols-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+
