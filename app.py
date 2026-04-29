@@ -7,7 +7,7 @@ import pandas as pd
 from models import Student
 from controller import process_student
 
-from database import init_db, connect
+from database import *
 from analysis import *
 
 app = Flask(__name__)
