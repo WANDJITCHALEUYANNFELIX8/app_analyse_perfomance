@@ -50,6 +50,13 @@ def home():
 
     return render_template("index.html", nb=nb, stats=stats)
 
+@app.route("/seed")
+def seed():
+    from test import seed_students, clear_table
+    clear_table()
+    seed_students(100)
+    return "DB seeded"
+
 # ─────────────────────────────
 # FORMULAIRE
 # ─────────────────────────────
