@@ -3,7 +3,7 @@ import io, base64, matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import pandas as pd
-
+from functools import lru_cache
 from models import Student
 from controller import process_student
 
@@ -12,6 +12,9 @@ from analysis import *
 
 app = Flask(__name__)
 app.secret_key = "edustat_secret_2024"
+app.config['SESSION_COOKIE_SAMESITE'] = "Lax"
+app.config['SESSION_COOKIE_SECURE'] = True
+
 
 # ─────────────────────────────
 # INIT DB (Render safe)
@@ -32,6 +35,26 @@ def fig_b64(fig):
     plt.close(fig)
     return img
 
+@lru_cache(maxsize=10)
+def get_all_graphs_cached():
+    data = afficher_donnees()
+
+    if len(data) == 0:
+        return {}
+
+    data = ajouter_classe(data)
+    df_pca, fig0, variance = analyser_pca(data)
+
+    return {
+        "hist": fig_b64(graphique_histogramme(data)),
+        "classes": fig_b64(graphique_repartition_classes(data)),
+        "sexe": fig_b64(graphique_moyenne_sexe(data)),
+        "niveau": fig_b64(graphique_moyenne_niveau(data)),
+        "corr": fig_b64(graphique_correlations(data)),
+        "boxplot": fig_b64(graphique_boxplot(data)),
+        "pca": fig_b64(fig0)
+    }
+    
 # ─────────────────────────────
 # HOME
 # ─────────────────────────────
@@ -59,6 +82,7 @@ def formulaire():
 
 @app.route('/submit', methods=['POST'])
 def submit():
+    get_all_graphs_cached.cache_clear()
     form_data = {
         "age": request.form["age"],
         "sexe": request.form["sexe"],
@@ -147,15 +171,7 @@ def generale():
     
     df_pca, fig0, variance = analyser_pca(data)
     
-    imgs = {
-        "hist": fig_b64(graphique_histogramme(data)),
-        "classes": fig_b64(graphique_repartition_classes(data)),
-        "sexe": fig_b64(graphique_moyenne_sexe(data)),
-        "niveau": fig_b64(graphique_moyenne_niveau(data)),
-        "corr": fig_b64(graphique_correlations(data)),
-        "boxplot": fig_b64(graphique_boxplot(data)),
-        "pca": fig_b64(fig0)
-    }
+    imgs = get_all_graphs_cached()
 
     return render_template(
         "generale.html",
@@ -168,6 +184,7 @@ def generale():
 
 # ─────────────────────────────
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
     
     
