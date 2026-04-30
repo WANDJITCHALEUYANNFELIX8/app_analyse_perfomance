@@ -1,15 +1,13 @@
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import matplotlib.ticker as mticker
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, r2_score
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
-from sklearn.metrics import r2_score
-from database import connect
-
-
+from database import get_all_students
 
 # ── palette ───────────────────────────────────────────────────────
 NIGHT  = "#0D1B2A"
@@ -21,143 +19,53 @@ RED    = "#FF6B6B"
 AMBER  = "#EF9F27"
 WHITE  = "#E8F4FD"
 
-def expliquer_classe(moyenne, classe_ml, classe_finale):
-    """
-    Explication simple, humaine et compréhensible.
-    """
-
-    classe_moy = get_class_from_mean(moyenne)
-    exp = []
-
-    # 1. Explication de la moyenne
-    if moyenne < 10:
-        exp.append(f"📊 Ta moyenne est de {moyenne}. Cela montre que tu as encore des difficultés dans plusieurs matières.")
-    elif moyenne < 15:
-        exp.append(f"📊 Ta moyenne est de {moyenne}. Tu es dans une zone correcte, mais tu peux encore progresser.")
-    elif moyenne < 18:
-        exp.append(f"📊 Ta moyenne est de {moyenne}. Tu fais de bons résultats, continue comme ça.")
-    else:
-        exp.append(f"📊 Ta moyenne est de {moyenne}. Excellent travail, tu es parmi les meilleurs étudiants.")
-
-    # 2. Explication du modèle IA
-    if classe_ml == "faible":
-        exp.append("🤖 L'analyse de ton comportement montre que certains efforts sont encore insuffisants.")
-    elif classe_ml == "moyen":
-        exp.append("🤖 Ton comportement global est moyen : tu es régulier, mais pas encore optimal.")
-    elif classe_ml == "bon":
-        exp.append("🤖 Ton comportement est bon : tu es discipliné et sérieux dans ton travail.")
-    else:
-        exp.append("🤖 Ton comportement est excellent : tu es très organisé et régulier.")
-
-    # 3. Décision finale
-    if classe_finale == "faible":
-        exp.append("⚠️ Résultat final : niveau faible. Tu dois changer ta méthode de travail et t’organiser davantage.")
-    elif classe_finale == "moyen":
-        exp.append("📌 Résultat final : niveau moyen. Tu es sur la bonne voie, mais tu dois être plus constant.")
-    elif classe_finale == "bon":
-        exp.append("👍 Résultat final : bon niveau. Tu as de bonnes bases, continue tes efforts.")
-    else:
-        exp.append("🌟 Résultat final : excellent niveau. Félicitations, tu as un très bon profil académique.")
-
-    # 4. Message motivation
-    exp.append("💡 Conseil : la régularité et la discipline sont les clés de ta réussite.")
-
-    return exp
-
-
-# ─────────────────────────────────────────────
-# 🎯 NOUVEAU : CLASSE MÉTIER (MÉTHODE FIABLE)
-# ─────────────────────────────────────────────
-def get_class_from_mean(m):
-    if m < 10:
-        return "faible"
-    elif m < 15:
-        return "moyen"
-    elif m < 18:
-        return "bon"
-    else:
-        return "excellent"
-
-# ─────────────────────────────────────────────
-# 🎯 NOUVEAU : FUSION ML + MOYENNE (OPTION 3)
-# ─────────────────────────────────────────────
-def fusion_classe(moyenne, classe_ml):
-    """
-    Combine règle métier (70%) + ML (30%)
-    """
-    classe_moy = get_class_from_mean(moyenne)
-
-    poids = {
-        "faible": 1,
-        "moyen": 2,
-        "bon": 3,
-        "excellent": 4
-    }
-
-    score_final = (0.7 * poids[classe_moy]) + (0.3 * poids.get(classe_ml, 2))
-
-    if score_final < 1.5:
-        return "faible"
-    elif score_final < 2.5:
-        return "moyen"
-    elif score_final < 3.5:
-        return "bon"
-    else:
-        return "excellent"
-
-
-# ── descriptions des graphiques (utilisées dans les templates) ────
+# ── descriptions des graphiques ───────────────────────────────────
 DESCRIPTIONS = {
     "histogramme": (
         "Distribution des moyennes",
         "Histogramme de toutes les notes de la promotion. "
         "Chaque barre représente un intervalle de 1 à 2 points. "
         "La couleur plus intense signale un plus grand nombre d'étudiants "
-        "dans cet intervalle. Un pic à droite indique de bons résultats généraux."
-    ),
-    "nuage": (
-        "Étude vs Moyenne — Nuage de points",
-        "Chaque point représente un étudiant. L'axe horizontal = temps d'étude "
-        "quotidien (h/j), l'axe vertical = moyenne obtenue (/20). "
-        "La couleur varie du bleu (basses notes) au vert (hautes notes). "
-        "Une tendance montante confirme l'impact positif du travail sur les résultats."
+        "dans cet intervalle. La ligne jaune indique la médiane."
     ),
     "classes": (
         "Répartition par classe",
-        "Diagramme en barres des 4 niveaux académiques. "
-        "Faible : moyenne < 10 | Moyen : 10–14 | Bon : 15–17 | Excellent : ≥ 18. "
-        "La hauteur de chaque barre indique le nombre d'étudiants dans cette classe."
+        "Diagramme en barres des 4 niveaux. "
+        "Faible : < 10 | Moyen : 10–14 | Bon : 15–17 | Excellent : ≥ 18."
     ),
     "sexe": (
         "Moyenne par sexe",
         "Comparaison des performances moyennes entre étudiants masculins (M) "
-        "et féminins (F). Permet de détecter d'éventuelles différences de résultats "
-        "selon le genre dans la promotion."
+        "et féminins (F)."
     ),
     "niveau": (
         "Moyenne par niveau d'études",
         "Évolution de la moyenne selon le niveau (L1 à M2). "
-        "Permet de voir si les étudiants progressent au fil des années "
-        "ou si certains niveaux présentent des difficultés particulières."
+        "Permet de voir si les étudiants progressent au fil des années."
     ),
     "correlations": (
         "Corrélations avec la moyenne",
-        "Barres horizontales montrant le coefficient de corrélation de Pearson "
-        "entre chaque variable et la moyenne. "
-        "Vert = influence positive (plus la valeur est haute, meilleure est la note). "
-        "Rouge = influence négative (ex : distraction élevée → mauvaise note). "
-        "Une valeur proche de ±1 indique une forte relation."
+        "Coefficient de corrélation de Pearson entre chaque variable et la moyenne. "
+        "Vert = influence positive. Rouge = influence négative."
     ),
     "boxplot": (
         "Boîtes à moustaches — variables comportementales",
-        "Chaque boîte montre la distribution d'une variable : "
-        "le trait central = médiane, la boîte = 1er au 3e quartile (50% des données), "
-        "les moustaches = valeurs min/max hors valeurs aberrantes (points isolés)."
+        "Trait jaune = médiane. Boîte = Q1 à Q3 (50% des données). "
+        "Moustaches = min/max. Points isolés = valeurs aberrantes."
+    ),
+    "pca": (
+        "Projection PCA des étudiants",
+        "Réduction des 7 variables comportementales en 2 dimensions. "
+        "Chaque point = un étudiant. La couleur indique sa moyenne. "
+        "Des points proches = profils similaires."
     ),
 }
 
+# ─────────────────────────────────────────────
+# UTILITAIRE AXES
+# ─────────────────────────────────────────────
+
 def _style_ax(ax, title="", xlabel="", ylabel=""):
-    """Applique le thème sombre à un axe matplotlib."""
     ax.set_facecolor(SOFT)
     ax.figure.set_facecolor(NIGHT)
     ax.tick_params(colors=WHITE, labelsize=9)
@@ -176,60 +84,11 @@ def _style_ax(ax, title="", xlabel="", ylabel=""):
 # ─────────────────────────────────────────────
 
 def afficher_donnees():
-    conn = connect()
-    df   = pd.read_sql_query("SELECT * FROM student", conn)
-    conn.close()
-    return df
+    return get_all_students()
 
 # ─────────────────────────────────────────────
 # ANALYSE DESCRIPTIVE
 # ─────────────────────────────────────────────
-
-def stats_generales(data):
-    """
-    Retourne un dictionnaire complet de statistiques descriptives :
-    tendance centrale, dispersion, quantiles, répartition par groupe,
-    corrélations.
-    """
-    m = data["moyenne"]
-
-    # ── quantiles ──
-    q1  = round(m.quantile(0.25), 2)
-    q2  = round(m.quantile(0.50), 2)   # = médiane
-    q3  = round(m.quantile(0.75), 2)
-    iqr = round(q3 - q1, 2)            # écart interquartile
-
-    # ── corrélations ──
-    variables = ["etude","sommeil","distraction",
-                 "assiduite","ponctualite","discipline","tache"]
-    corrs = {v: round(data[v].corr(m), 3) for v in variables}
-
-    return {
-        # tendance centrale
-        "nb":          len(data),
-        "moy_gen":     round(m.mean(),   2),
-        "moy_mediane": q2,
-        "moy_mode":    round(m.mode()[0], 2) if not m.mode().empty else "N/A",
-        # dispersion
-        "moy_min":     round(m.min(),    2),
-        "moy_max":     round(m.max(),    2),
-        "moy_ecart":   round(m.std(),    2),
-        "moy_var":     round(m.var(),    2),
-        # quantiles
-        "q1":          q1,
-        "q2":          q2,
-        "q3":          q3,
-        "iqr":         iqr,
-        "p10":         round(m.quantile(0.10), 2),
-        "p90":         round(m.quantile(0.90), 2),
-        # répartitions
-        "par_sexe":    data.groupby("sexe")["moyenne"].mean().round(2).to_dict(),
-        "par_niveau":  data.groupby("niveau")["moyenne"].mean().round(2).to_dict(),
-        "nb_sexe":     data["sexe"].value_counts().to_dict(),
-        "nb_niveau":   data["niveau"].value_counts().to_dict(),
-        # corrélations
-        "corrs":       corrs,
-    }
 
 def ajouter_classe(data):
     def definir_classe(m):
@@ -241,23 +100,51 @@ def ajouter_classe(data):
     data["classe"] = data["moyenne"].apply(definir_classe)
     return data
 
+def get_class_from_mean(m):
+    if   m < 10: return "faible"
+    elif m < 15: return "moyen"
+    elif m < 18: return "bon"
+    else:        return "excellent"
+
+def stats_generales(data):
+    m   = data["moyenne"]
+    q1  = round(m.quantile(0.25), 2)
+    q2  = round(m.quantile(0.50), 2)
+    q3  = round(m.quantile(0.75), 2)
+    iqr = round(q3 - q1, 2)
+    variables = ["etude","sommeil","distraction",
+                 "assiduite","ponctualite","discipline","tache"]
+    return {
+        "nb":          len(data),
+        "moy_gen":     round(m.mean(),   2),
+        "moy_mediane": q2,
+        "moy_mode":    round(m.mode()[0], 2) if not m.mode().empty else "N/A",
+        "moy_min":     round(m.min(),    2),
+        "moy_max":     round(m.max(),    2),
+        "moy_ecart":   round(m.std(),    2),
+        "moy_var":     round(m.var(),    2),
+        "q1":  q1, "q2": q2, "q3": q3, "iqr": iqr,
+        "p10": round(m.quantile(0.10), 2),
+        "p90": round(m.quantile(0.90), 2),
+        "par_sexe":   data.groupby("sexe")["moyenne"].mean().round(2).to_dict(),
+        "par_niveau": data.groupby("niveau")["moyenne"].mean().round(2).to_dict(),
+        "nb_sexe":    data["sexe"].value_counts().to_dict(),
+        "nb_niveau":  data["niveau"].value_counts().to_dict(),
+        "corrs":      {v: round(data[v].corr(m), 3) for v in variables},
+    }
+
 # ─────────────────────────────────────────────
-# GRAPHIQUES DESCRIPTIFS
+# GRAPHIQUES
 # ─────────────────────────────────────────────
 
 def graphique_histogramme(data):
-    """Distribution des moyennes avec dégradé de couleur."""
     fig, ax = plt.subplots(figsize=(7, 4))
     n, bins, patches = ax.hist(data["moyenne"], bins=12,
                                 edgecolor=NIGHT, linewidth=0.8)
     max_n = max(n) if max(n) > 0 else 1
     for patch, val in zip(patches, n):
         t = val / max_n
-        r = int(79  + (0   - 79)  * t)
-        g = int(195 + (229 - 195) * t)
-        b = int(247 + (160 - 247) * t)
-        patch.set_facecolor(f"#{r:02x}{g:02x}{b:02x}")
-    # ligne médiane
+        patch.set_facecolor(f"#{int(79+(0-79)*t):02x}{int(195+(229-195)*t):02x}{int(247+(160-247)*t):02x}")
     med = data["moyenne"].median()
     ax.axvline(med, color=YELLOW, linewidth=1.8, linestyle="--", label=f"Médiane : {med:.1f}")
     ax.legend(facecolor=SOFT, edgecolor="#2C4A6E", labelcolor=WHITE, fontsize=9)
@@ -266,101 +153,120 @@ def graphique_histogramme(data):
     plt.tight_layout()
     return fig
 
-
 def graphique_repartition_classes(data):
-    """Répartition des classes avec labels sur les barres."""
     fig, ax = plt.subplots(figsize=(7, 4))
-    ordre    = ["faible", "moyen", "bon", "excellent"]
-    couleurs = [RED, AMBER, SKY, GREEN]
-    repartition = data["classe"].value_counts().reindex(ordre, fill_value=0)
-    bars = ax.bar(repartition.index, repartition.values,
-                  color=couleurs, edgecolor=NIGHT, linewidth=0.8, width=0.55)
-    for bar, val in zip(bars, repartition.values):
-        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.3,
-                str(val), ha="center", va="bottom",
-                color=WHITE, fontsize=10, fontweight="bold")
+    ordre = ["faible","moyen","bon","excellent"]
+    rep   = data["classe"].value_counts().reindex(ordre, fill_value=0)
+    bars  = ax.bar(rep.index, rep.values,
+                   color=[RED,AMBER,SKY,GREEN], edgecolor=NIGHT, width=0.55)
+    for bar, val in zip(bars, rep.values):
+        ax.text(bar.get_x()+bar.get_width()/2, bar.get_height()+0.3,
+                str(val), ha="center", va="bottom", color=WHITE, fontsize=10, fontweight="bold")
     _style_ax(ax, title=DESCRIPTIONS["classes"][0],
               xlabel="Classe", ylabel="Nombre d'étudiants")
     plt.tight_layout()
     return fig
 
 def graphique_moyenne_sexe(data):
-    """Moyenne par sexe."""
     fig, ax = plt.subplots(figsize=(5, 4))
-    moy = data.groupby("sexe")["moyenne"].mean()
+    moy  = data.groupby("sexe")["moyenne"].mean()
     bars = ax.bar(moy.index, moy.values,
-                  color=[SKY, GREEN][:len(moy)], edgecolor=NIGHT, width=0.4)
+                  color=[SKY,GREEN][:len(moy)], edgecolor=NIGHT, width=0.4)
     for bar, val in zip(bars, moy.values):
-        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.2,
-                f"{val:.2f}", ha="center", va="bottom",
-                color=WHITE, fontsize=10, fontweight="bold")
-    _style_ax(ax, title=DESCRIPTIONS["sexe"][0],
-              xlabel="Sexe", ylabel="Moyenne (/20)")
+        ax.text(bar.get_x()+bar.get_width()/2, bar.get_height()+0.2,
+                f"{val:.2f}", ha="center", va="bottom", color=WHITE, fontsize=10, fontweight="bold")
+    _style_ax(ax, title=DESCRIPTIONS["sexe"][0], xlabel="Sexe", ylabel="Moyenne (/20)")
     plt.tight_layout()
     return fig
 
 def graphique_moyenne_niveau(data):
-    """Moyenne par niveau d'études."""
     fig, ax = plt.subplots(figsize=(7, 4))
-    moy = data.groupby("niveau")["moyenne"].mean().sort_index()
+    moy  = data.groupby("niveau")["moyenne"].mean().sort_index()
     bars = ax.bar(moy.index, moy.values,
                   color=SKY, edgecolor=NIGHT, linewidth=0.8, width=0.5)
     for bar, val in zip(bars, moy.values):
-        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.2,
-                f"{val:.2f}", ha="center", va="bottom",
-                color=WHITE, fontsize=10, fontweight="bold")
-    _style_ax(ax, title=DESCRIPTIONS["niveau"][0],
-              xlabel="Niveau", ylabel="Moyenne (/20)")
+        ax.text(bar.get_x()+bar.get_width()/2, bar.get_height()+0.2,
+                f"{val:.2f}", ha="center", va="bottom", color=WHITE, fontsize=10, fontweight="bold")
+    _style_ax(ax, title=DESCRIPTIONS["niveau"][0], xlabel="Niveau", ylabel="Moyenne (/20)")
     plt.tight_layout()
     return fig
 
 def graphique_correlations(data):
-    """Corrélations de toutes les variables avec la moyenne."""
     variables = ["etude","sommeil","distraction",
                  "assiduite","ponctualite","discipline","tache"]
     corrs    = [round(data[v].corr(data["moyenne"]), 3) for v in variables]
     couleurs = [GREEN if c > 0 else RED for c in corrs]
-
-    fig, ax = plt.subplots(figsize=(7, 4))
-    bars = ax.barh(variables, corrs, color=couleurs,
-                   edgecolor=NIGHT, linewidth=0.8)
+    fig, ax  = plt.subplots(figsize=(7, 4))
+    bars     = ax.barh(variables, corrs, color=couleurs, edgecolor=NIGHT)
     ax.axvline(0, color=WHITE, linewidth=0.8, linestyle="--")
     for bar, val in zip(bars, corrs):
-        ax.text(val + (0.01 if val >= 0 else -0.01),
-                bar.get_y() + bar.get_height()/2,
-                f"{val:+.3f}", va="center",
-                ha="left" if val >= 0 else "right",
+        ax.text(val+(0.01 if val>=0 else -0.01), bar.get_y()+bar.get_height()/2,
+                f"{val:+.3f}", va="center", ha="left" if val>=0 else "right",
                 color=WHITE, fontsize=9, fontweight="bold")
     _style_ax(ax, title=DESCRIPTIONS["correlations"][0],
-              xlabel="Coefficient de corrélation", ylabel="")
+              xlabel="Coefficient de corrélation")
     plt.tight_layout()
     return fig
 
 def graphique_boxplot(data):
-    """Boîtes à moustaches des variables comportementales."""
     variables = ["etude","sommeil","distraction",
                  "assiduite","ponctualite","discipline","tache"]
-    fig, ax = plt.subplots(figsize=(9, 4))
-    bp = ax.boxplot(
-        [data[v].dropna() for v in variables],
-        labels=variables,
-        patch_artist=True,
-        medianprops=dict(color=YELLOW, linewidth=2),
-        whiskerprops=dict(color=WHITE),
-        capprops=dict(color=WHITE),
-        flierprops=dict(marker="o", color=RED, markersize=4, alpha=0.6)
-    )
-    colors = [SKY, GREEN, RED, SKY, GREEN, SKY, GREEN]
-    for patch, color in zip(bp["boxes"], colors):
-        patch.set_facecolor(color)
-        patch.set_alpha(0.5)
+    fig, ax   = plt.subplots(figsize=(9, 4))
+    bp = ax.boxplot([data[v].dropna() for v in variables], labels=variables,
+                    patch_artist=True,
+                    medianprops=dict(color=YELLOW, linewidth=2),
+                    whiskerprops=dict(color=WHITE),
+                    capprops=dict(color=WHITE),
+                    flierprops=dict(marker="o", color=RED, markersize=4, alpha=0.6))
+    for patch, color in zip(bp["boxes"], [SKY,GREEN,RED,SKY,GREEN,SKY,GREEN]):
+        patch.set_facecolor(color); patch.set_alpha(0.5)
     ax.set_xticklabels(variables, rotation=25, ha="right", color=WHITE, fontsize=9)
     _style_ax(ax, title=DESCRIPTIONS["boxplot"][0], ylabel="Valeur")
     plt.tight_layout()
     return fig
 
 # ─────────────────────────────────────────────
-# CLASSIFICATION (résultat individuel)
+# PCA
+# ─────────────────────────────────────────────
+
+def analyser_pca(data):
+    features = ["etude","sommeil","distraction",
+                "assiduite","ponctualite","discipline","tache"]
+    X        = data[features].dropna()
+    scaler   = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+    pca      = PCA(n_components=2)
+    comps    = pca.fit_transform(X_scaled)
+    variance = pca.explained_variance_ratio_
+
+    df_pca = pd.DataFrame({
+        "PC1":     comps[:, 0],
+        "PC2":     comps[:, 1],
+        "moyenne": data["moyenne"].values[:len(comps)],
+        "classe":  data["classe"].values[:len(comps)]
+    })
+
+    # graphique
+    fig, ax = plt.subplots(figsize=(8, 5))
+    sc = ax.scatter(df_pca["PC1"], df_pca["PC2"],
+                    c=df_pca["moyenne"], cmap="viridis",
+                    s=80, alpha=0.9, edgecolors=NIGHT)
+    cb = plt.colorbar(sc, ax=ax, label="Moyenne")
+    cb.ax.yaxis.set_tick_params(color=WHITE)
+    plt.setp(cb.ax.yaxis.get_ticklabels(), color=WHITE)
+    cb.set_label("Moyenne", color=WHITE, fontsize=9)
+    pct1 = round(variance[0]*100, 1)
+    pct2 = round(variance[1]*100, 1)
+    _style_ax(ax,
+              title=DESCRIPTIONS["pca"][0],
+              xlabel=f"PC1 ({pct1}% de variance)",
+              ylabel=f"PC2 ({pct2}% de variance)")
+    plt.tight_layout()
+
+    return df_pca, fig, variance
+
+# ─────────────────────────────────────────────
+# CLASSIFICATION
 # ─────────────────────────────────────────────
 
 def classification_modele(data):
@@ -377,156 +283,84 @@ def classification_modele(data):
     acc = accuracy_score(y_test, model.predict(X_test))
     return model, scaler, acc
 
-def predire_classe(model, scaler, form_data):
-    """Prédit la classe d'un nouvel étudiant."""
-    features = ["etude","sommeil","distraction","assiduite",
-                "ponctualite","discipline","tache"]
-    X_new = pd.DataFrame(
-        [[float(form_data[f]) for f in features]], columns=features)
-    return model.predict(scaler.transform(X_new))[0]
+def fusion_classe(moyenne, classe_ml):
+    """Combine règle métier (70%) + ML (30%)."""
+    poids = {"faible":1, "moyen":2, "bon":3, "excellent":4}
+    score = 0.7 * poids[get_class_from_mean(moyenne)] + 0.3 * poids.get(classe_ml, 2)
+    if   score < 1.5: return "faible"
+    elif score < 2.5: return "moyen"
+    elif score < 3.5: return "bon"
+    else:             return "excellent"
 
-def generer_conseils(student, classe_predite,moyenne_generale):
-    """Génère des conseils personnalisés selon le profil de l'étudiant."""
+def expliquer_classe(moyenne, classe_ml, classe_finale):
+    exp = []
+    seuils = [(10,"Ta moyenne de {m} montre des difficultés dans plusieurs matières."),
+              (15,"Ta moyenne de {m} est correcte, mais tu peux progresser."),
+              (18,"Ta moyenne de {m} est bonne, continue ainsi."),
+              (21,"Ta moyenne de {m} est excellente, tu es parmi les meilleurs.")]
+    for seuil, msg in seuils:
+        if moyenne < seuil:
+            exp.append("📊 " + msg.format(m=moyenne)); break
+    labels_ml = {"faible":"🤖 Ton comportement indique des efforts encore insuffisants.",
+                 "moyen": "🤖 Ton comportement est moyen : régulier, mais pas encore optimal.",
+                 "bon":   "🤖 Ton comportement est bon : tu es discipliné et sérieux.",
+                 "excellent":"🤖 Ton comportement est excellent : très organisé et régulier."}
+    exp.append(labels_ml.get(classe_ml, "🤖 Analyse comportementale effectuée."))
+    labels_fin = {"faible":"⚠️ Résultat : niveau faible. Change ta méthode de travail.",
+                  "moyen": "📌 Résultat : niveau moyen. Sois plus constant.",
+                  "bon":   "👍 Résultat : bon niveau. Continue tes efforts.",
+                  "excellent":"🌟 Résultat : excellent niveau. Félicitations !"}
+    exp.append(labels_fin.get(classe_finale, ""))
+    exp.append("💡 La régularité et la discipline sont les clés de ta réussite.")
+    return exp
+
+def generer_conseils(student, classe_predite, moyenne_generale):
     conseils = []
     c = str(classe_predite).lower()
 
     if float(student.etude) < 4:
-        conseils.append("📚 Augmente ton temps d'étude quotidien — vise au moins 4 h/jour.")
+        conseils.append("📚 Augmente ton temps d'étude — vise au moins 4 h/jour.")
     elif float(student.etude) > 8:
-        conseils.append("⚠️ Attention au surmenage. Un excès d'étude peut réduire l'efficacité.")    
-        
+        conseils.append("⚠️ Attention au surmenage. Un excès d'étude peut réduire l'efficacité.")
     if float(student.sommeil) < 6:
-        conseils.append("💤 Tu manques de sommeil. 7 à 8 h par nuit améliorent la mémoire et la concentration.")
+        conseils.append("💤 Dors au moins 7 à 8 h — essentiel pour la mémoire et la concentration.")
     elif float(student.sommeil) > 9:
-        conseils.append("Un excès de sommeil peut aussi affecter votre productivité.")    
-        
+        conseils.append("⚠️ Un excès de sommeil peut aussi affecter ta productivité.")
     if float(student.distraction) > 6:
-        conseils.append("📵 Réduis les distractions (téléphone, réseaux sociaux) pendant les sessions de travail.")
+        conseils.append("📵 Réduis les distractions pendant les sessions de travail.")
     if float(student.assiduite) < 6:
-        conseils.append("🏫 Améliore ton assiduité — être présent en cours est la base de la réussite.")
+        conseils.append("🏫 Améliore ton assiduité — être présent en cours est essentiel.")
     if float(student.ponctualite) < 6:
-        conseils.append("⏰ La ponctualité permet de ne pas manquer les débuts de cours, souvent essentiels.")
+        conseils.append("⏰ La ponctualité te permet de ne pas manquer les débuts de cours.")
     if float(student.discipline) < 6:
-        conseils.append("🎯 Renforce ta discipline : planifie tes révisions avec un calendrier fixe.")
+        conseils.append("🎯 Planifie tes révisions avec un calendrier fixe.")
     if float(student.tache) < 6:
-        conseils.append("✅ Fais tes tâches et devoirs régulièrement — ne reporte pas à la dernière minute.")
+        conseils.append("✅ Fais tes tâches régulièrement — ne reporte pas.")
     if float(student.env) < 3:
-        conseils.append("🏠 Améliore ton environnement de travail : espace calme, bien éclairé, organisé.")
+        conseils.append("🏠 Améliore ton environnement : calme, éclairé, organisé.")
 
     if not conseils:
-        if "excellent" in c:
-            conseils.append("🌟 Profil excellent ! Continue sur cette lancée et partage tes méthodes avec tes camarades.")
-        elif "bon" in c:
-            conseils.append("👍 Très bon profil. Quelques ajustements mineurs peuvent te faire basculer en excellent.")
-        elif "faible"in c:
-            conseils.append("⚠️ Votre niveau est bas . Un changement sérieux de méthode de travail est recommandé.")
-        elif classe_predite == "moyen":
-            conseils.append("📈 Vous avez un niveau moyen. Vous pouvez facilement progresser avec plus de discipline.")    
-        else:
-            conseils.append("📈 Vous avez un niveau moyen. Vous pouvez facilement progresser avec plus de discipline.\n💪 Reste motivé·e et régulier·e. La constance est la clé de la progression.")
-            
-            
-     
-    # ─────────────────────────────
-    # 3. COMPARAISON AVEC LA MOYENNE GLOBALE
-    # ─────────────────────────────
+        messages = {"excellent":"🌟 Continue sur cette lancée !",
+                    "bon":      "👍 Quelques ajustements peuvent te faire passer excellent.",
+                    "moyen":    "📈 Tu peux progresser avec plus de discipline.",
+                    "faible":   "⚠️ Un changement sérieux de méthode est recommandé."}
+        conseils.append(messages.get(c, "💪 Reste motivé·e et régulier·e."))
+
     if moyenne_generale != "N/A":
-        if student.moyenne < moyenne_generale:
-            conseils.append("Votre moyenne est en dessous de la moyenne générale. Un effort supplémentaire est nécessaire.")
+        diff = float(student.moyenne) - float(moyenne_generale)
+        if diff < 0:
+            conseils.append(f"📊 Ta moyenne est en dessous de la promo ({moyenne_generale}). Un effort supplémentaire est nécessaire.")
         else:
-            conseils.append("Votre moyenne est au-dessus de la moyenne générale. Continuez ainsi !")       
-            
+            conseils.append(f"📊 Ta moyenne est au-dessus de la promo ({moyenne_generale}). Continue ainsi !")
+
     priorite = None
-
-    if student.distraction > 3:
+    if float(student.distraction) > 3:
         priorite = "Réduire les distractions"
-    elif student.etude < 4:
+    elif float(student.etude) < 4:
         priorite = "Augmenter le temps d'étude"
-    elif student.sommeil < 4:
+    elif float(student.sommeil) < 4:
         priorite = "Améliorer le sommeil"
-
     if priorite:
-        conseils.insert(0, f"🔥 PRIORITÉ : {priorite}")        
+        conseils.insert(0, f"🔥 PRIORITÉ : {priorite}")
 
     return conseils
-    
-
-def regression_multiple(data):
-    features = [
-        "etude", "sommeil", "distraction",
-        "assiduite", "ponctualite", "discipline", "tache"
-    ]
-
-    X = data[features]
-    y = data["moyenne"]
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
-    )
-
-    model = LinearRegression()
-    model.fit(X_train, y_train)
-
-    y_pred = model.predict(X_test)
-
-    score = r2_score(y_test, y_pred)
-
-    return model, score    
-    
-def appliquer_pca(data):
-    features = [
-        "etude", "sommeil", "distraction",
-        "assiduite", "ponctualite", "discipline", "tache"
-    ]
-
-    X = data[features]
-
-    # standardisation (IMPORTANT pour PCA)
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-
-    # PCA → 2 dimensions
-    pca = PCA(n_components=2)
-    components = pca.fit_transform(X_scaled)
-
-    df_pca = pd.DataFrame({
-        "PC1": components[:, 0],
-        "PC2": components[:, 1],
-        "moyenne": data["moyenne"],
-        "classe": data["classe"]
-    })
-
-    return df_pca, pca.explained_variance_ratio_
-
-def plot_pca(df_pca):
-    fig, ax = plt.subplots(figsize=(8, 5))
-
-    sc = ax.scatter(
-        df_pca["PC1"],
-        df_pca["PC2"],
-        c=df_pca["moyenne"],
-        cmap="viridis",
-        s=80,
-        alpha=0.9,
-        edgecolors="#0D1B2A"
-    )
-
-    plt.colorbar(sc, label="Moyenne")
-
-    _style_ax(
-        ax,
-        title="Projection PCA des étudiants",
-        xlabel="PC1 → Performance globale",
-        ylabel="PC2 → Style de travail"
-    )
-
-    return fig
-
-def analyser_pca(data):
-    df_pca, variance = appliquer_pca(data)
-
-    fig = plot_pca(df_pca)
-
-
-    return df_pca, fig, variance
-
